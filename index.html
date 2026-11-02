@@ -1351,7 +1351,35 @@ function pSpikes(R,n,col,rot=0,w=.05){ // diffraction spikes, as a telescope see
 function pHaze(R,col,a){ const g=C.createRadialGradient(0,0,0,0,0,R); g.addColorStop(0,hexA(col,a)); g.addColorStop(1,hexA(col,0)); C.fillStyle=g; C.fillRect(-R,-R,R*2,R*2); }
 
 const BLUE=["#eef6ff","#7ab8ff","#0c2050"];
+const FOE={
+  slime:   {s:"circle",rays:8,inner:5,halo:2.2},
+  mini:    {s:"ember",inner:3,echo:false,halo:2.2},
+  spiky:   {s:"nova",inner:4,halo:2.1},
+  tank:    {s:"lumen",rays:12,inner:6,tend:6,halo:2.3},
+  bat:     {s:"volt",rays:8,inner:4,halo:2.4},
+  shooter: {s:"circle",inner:4,halo:2.1},
+  dasher:  {s:"ember",rays:6,inner:3,halo:2.3},
+  shade:   {s:"aqua",inner:5,halo:2},
+  wdwarf:  {s:"nova",rays:4,inner:4,halo:2.4},
+  wolf:    {s:"lumen",rays:16,inner:6,halo:2.3},
+  magnetar:{s:"volt",inner:4,tend:4,halo:2.2},
+  ringer:  {s:"circle",rays:8,inner:8,echo:"nova",halo:2.4},
+  binA:    {t:"splitter",sc:.55,s:"circle",inner:5,halo:2.2},
+  binB:    {t:"splitter",sc:.4,s:"circle",inner:5,halo:2.2,c:BLUE}
+};
+function pFoe(r,F,c,t){
+  pHaze(r*F.halo,c[1],.42);
+  if(F.tend) pTendrils(r,r*7,F.tend,t,.7);
+  if(F.rays) for(let i=0;i<F.rays;i++){ const a=(i+t)*TAU/F.rays, L=r*(i%2?1.7:2.05); seg(Math.cos(a)*r*1.18,Math.sin(a)*r*1.18,Math.cos(a)*L,Math.sin(a)*L,hexA(c[0],.8),Math.max(.8,r*.07)); }
+  if(F.echo!==false){ sigPath(F.echo||F.s,0,0,r*1.5,t*TAU/4); fs(null,hexA(c[1],.75),Math.max(.9,r*.07)); }
+  sigPath(F.s,0,0,r,0); const g=C.createRadialGradient(0,0,r*.05,0,0,r*1.25); g.addColorStop(0,hexA(c[1],.9)); g.addColorStop(.45,"#140a26"); g.addColorStop(1,c[1]);
+  C.fillStyle=g; C.fill(); C.strokeStyle=c[0]; C.lineWidth=Math.max(1.2,r*.11); C.lineJoin="round"; C.stroke();
+  const ox=F.s==="aqua"?-r*.42:0, cr=F.s==="aqua"?r*.7:r; // the crescent's heart sits in its thick side, like Luna's
+  poly(ox,0,cr*.55,F.inner,-t*TAU/F.inner); fs(null,hexA(c[0],.85),Math.max(.8,r*.06));
+  dot(ox,0,cr*.32,c[0]); dot(ox,0,cr*.2,"#0b0418"); ringL(ox,0,cr*.2,hexA(c[0],.95),Math.max(.6,r*.035)); // a hollow, burning core
+}
 const SP={
+  foe:(t,i)=>{ const F=FOE[t], T=ET[F.t||t], r=T.r*(F.sc||1); return sprite(`fo${t}_${i}`,r*Math.max(F.halo,2.2),()=>pFoe(r,F,F.c||T.c,i/NF)); },
   dwarf:(v,i)=>sprite(`dw${v}_${i}`,ET.slime.r*1.85,()=>{ const r=ET.slime.r, c=ET.slime.c, t=i/NF, s=11+v*37;
     pCorona(r,10,c[1],.55,t,s); pTendrils(r,s,5,t,.75); pProm(r,hsh(s,3)*TAU+Math.sin(t*TAU)*.15,.3+.06*Math.sin(t*TAU),c[0]); pProm(r,hsh(s,4)*TAU,.2,c[1]);
     pSphere(r,c,s,26,v?[[.3,-.15,.13],[-.32,.32,.09]]:[[-.25,-.2,.1],[.2,.35,.12],[.42,-.1,.06]],0,t); }),
@@ -1443,6 +1471,7 @@ const SP={
       C.save(); C.translate(Math.cos(a)*d,Math.sin(a)*d); pHaze(r*.25*tw,"#ffffff",.9); sparkle(0,0,r*.22*tw,"#fff",0); C.restore(); } })
 };
 function warmSprites(){ // paint everything up front (during the loading screen) so the first swarm doesn't hitch
+  for(const t in FOE) for(let i=0;i<NF;i++) SP.foe(t,i);
   SK=Math.min(2,Math.max(1,Math.ceil(DPR*Z*4)/4));
   for(let i=0;i<NF;i++){ for(const v of[0,1]){ SP.dwarf(v,i); SP.giant(v,i); } SP.flare(0,i); SP.flare(1,i); }
   for(let i=0;i<12;i++) SP.ceph(i);
@@ -1484,34 +1513,34 @@ function drawEnemy(e){
   const lv=pt?0:Math.min(3,Math.floor(time/150))+(e.elite?1:0);
   let body=true;
   switch(e.t){
-    case"slime": stampF(SP.dwarf(v,fr(.5,NF)),x,y,0,k,fl); break; // red dwarf
-    case"mini": stampF(SP.cinder(),x,y,e.rot*.5,k*(1+.22*Math.sin(clock*9+e.seed)),fl); break; // stellar cinder
-    case"spiky": stamp(SP.tail("ice"),x,y,mv,k); stampF(SP.shoot(),x,y,e.rot,k,fl); break; // shooting star
-    case"tank": stampF(SP.giant(v,fr(.3,NF)),x,y,0,k,fl); break; // red giant
-    case"bat": stampF(SP.ceph(fr(1.1,12)),x,y,0,k,fl); break; // cepheid
+    case"slime": stampF(SP.foe("slime",fr(.4,NF)),x,y,e.rot*.3,k,fl); break; // red dwarf
+    case"mini": stampF(SP.foe("mini",0),x,y,e.rot,k*(1+.15*Math.sin(clock*9+e.seed)),fl); break; // stellar cinder
+    case"spiky": stamp(SP.tail("ice"),x,y,mv,k); stampF(SP.foe("spiky",0),x,y,e.rot,k,fl); break; // shooting star
+    case"tank": stampF(SP.foe("tank",fr(.25,NF)),x,y,e.rot*.15,k,fl); break; // red giant
+    case"bat": stampF(SP.foe("bat",fr(.6,NF)),x,y,0,k*(1+.14*Math.sin(clock*4+e.seed)),fl); break; // cepheid: it throbs
     case"splitter": { // binary star: gold sun feeding a blue one through a stream into its accretion disk
       const a=e.ph*.5, ax=x+Math.cos(a)*r*.55, ay=y+Math.sin(a)*r*.55, bx=x-Math.cos(a)*r*.55, by=y-Math.sin(a)*r*.55;
       ringL(x,y,r*.55,"rgba(255,220,160,.16)",1,[2,5]);
       C.lineCap="round"; C.beginPath(); C.moveTo(ax,ay); C.quadraticCurveTo(x+Math.cos(a+1.4)*r*.62,y+Math.sin(a+1.4)*r*.62,bx,by);
       C.strokeStyle=hexA(T.c[1],.5); C.lineWidth=r*.12; C.stroke(); C.strokeStyle="rgba(255,240,200,.85)"; C.lineWidth=r*.035; C.stroke();
       C.save(); C.translate(bx,by); C.rotate(a); C.scale(1,.38); C.beginPath(); C.arc(0,0,r*.62,Math.PI,TAU); C.strokeStyle="rgba(170,210,255,.55)"; C.lineWidth=2.4; C.stroke(); C.restore();
-      stampF(SP.bin(0,fr(.6,6)),ax,ay,0,k,fl); stampF(SP.bin(1,fr(.8,6)),bx,by,0,k,fl);
+      stampF(SP.foe("binA",fr(.5,NF)),ax,ay,a,k,fl); stampF(SP.foe("binB",fr(.7,NF)),bx,by,-a,k,fl);
       C.save(); C.translate(bx,by); C.rotate(a); C.scale(1,.38); C.beginPath(); C.arc(0,0,r*.62,0,Math.PI); C.strokeStyle="rgba(200,230,255,.85)"; C.lineWidth=2.4; C.stroke(); C.restore(); break; }
     case"shooter": { // pulsar: lighthouse beams sweep, then lock red onto you as it charges
       const ch=clamp(1-e.cd/2.3,0,1), lock=ch>.7, ba=lock?face:e.rot*4, bs=SP.beam(lock), bk=k*(lock?1.25:1);
-      stamp(bs,x,y,ba,bk); stamp(bs,x,y,ba+Math.PI,bk); stampF(SP.pulsar(),x,y,ba,k,fl);
+      stamp(bs,x,y,ba,bk); stamp(bs,x,y,ba+Math.PI,bk); stampF(SP.foe("shooter",0),x,y,ba,k,fl);
       glow(x,y,r*(.5+ch*1.5),lock?"rgba(255,110,130,.9)":"rgba(200,220,255,.9)",.35+ch*.6); break; }
     case"dasher": { // flare star: brightens and erupts, then hurls itself as a fireball
       const heat=e.st===1?1-e.tm/.7:e.st===2?1:0, a=e.st>0?Math.atan2(e.diry,e.dirx):face, f=fr(.7,NF);
       if(e.st===2) stamp(SP.tail("fire"),x,y,a,k*1.1);
       if(heat>0) glow(x,y,r*2.8,"rgba(255,170,60,.9)",heat*.85);
-      stampF(SP.flare(0,f),x,y,0,k,fl); if(heat>0) stamp(SP.flare(1,f),x,y,0,k,heat); break; }
-    case"shade": stampF(SP.dead(),x,y,e.rot*.3,k,fl); body=false; break; // black dwarf
-    case"wdwarf": stampF(SP.wd(),x,y,e.rot*.4,k,fl); break;
-    case"wolf": { const ch=clamp(1-e.cd/3.2,0,1); if(ch>.6) glow(x,y,r*2.6,"rgba(90,255,200,.9)",(ch-.6)*2.2); stampF(SP.wolf(fr(.6,NF)),x,y,0,k,fl); break; }
+      stampF(SP.foe("dasher",f),x,y,a+Math.PI/2,k,fl); if(heat>0) stamp(SP.flare(1,f),x,y,0,k,heat); break; }
+    case"shade": stampF(SP.foe("shade",0),x,y,e.rot*.3,k,fl); body=false; break; // black dwarf
+    case"wdwarf": stampF(SP.foe("wdwarf",0),x,y,e.rot*.6,k,fl); break;
+    case"wolf": { const ch=clamp(1-e.cd/3.2,0,1); if(ch>.6) glow(x,y,r*2.6,"rgba(90,255,200,.9)",(ch-.6)*2.2); stampF(SP.foe("wolf",fr(.5,NF)),x,y,e.rot*.2,k,fl); break; }
     case"magnetar": if(!pt&&dd<460){ const f=(clock*.9+e.seed*.01)%1; ringL(x,y,460*(1-f)+r,`rgba(190,130,255,${.3*f})`,2); } // pull waves converge inward
-      stampF(SP.mag(),x,y,e.rot*1.5,k,fl); break;
-    case"ringer": if(e.cd<.8) glow(x,y,r*2.6,"rgba(255,150,200,.9)",1-e.cd/.8); stampF(SP.ring(fr(.5,NF)),x,y,0,k,fl); break;
+      stampF(SP.foe("magnetar",0),x,y,e.rot*1.2,k,fl); break;
+    case"ringer": if(e.cd<.8) glow(x,y,r*2.6,"rgba(255,150,200,.9)",1-e.cd/.8); stampF(SP.foe("ringer",fr(.5,NF)),x,y,0,k,fl); break;
     case"nursery": stampF(SP.nurse(fr(.25,6)),x,y,e.rot*.15,k,fl); break;
     case"quasar": if(e.st>0&&!pt){ C.lineCap="round";
         for(const o of[0,Math.PI]){ const ex=x+Math.cos(e.ja+o)*560, ey=y+Math.sin(e.ja+o)*560;

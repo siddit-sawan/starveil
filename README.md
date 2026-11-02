@@ -15,7 +15,7 @@ A celestial arena survivor for the browser, built for CrazyGames (SDK v3 integra
 - **Never stand still:** linger inside one small patch of sky for 3 seconds and the Veil starts closing in. Your mass burns several times faster and solar flares rain down on you until you move
 - A leaner swarm (at most 110 on screen) where each star is sturdier and quicker, so runs stay hard without the lag. Mass refills (+25) are rare
 - **Procedural cosmic soundscape:** everything is synthesised live with Web Audio: a drone and starlight arpeggio that intensify with the run, crystal chimes when stars shatter, solar-wind dashes and deep cinematic hits for bosses
-- Every enemy is a star corrupted by the Veil: glowing fissures, dark tendrils and diffraction spikes
+- Every enemy is a dark mirror of your own star: the same glyph language (circle, 4-point star, crescent, triangle, diamond, hexagon) with echo outlines and rays, but hollow-cored and corrupted by the Veil
 - **Opening cutscene** with its own score, letterboxing, a slow camera push and a lens-flare ignition; on your first run and before the tutorial (skippable, and replayable from INTRO on the menu)
 - **Interactive tutorial** on your first run (or any time from HOW TO PLAY) that flows straight into the real run
 - 3 multi-phase bosses: The Obelisk (3:00), The Eclipse (6:00), Event Horizon (10:00). Beat Event Horizon to ascend
