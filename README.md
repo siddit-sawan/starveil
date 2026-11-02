@@ -15,7 +15,7 @@ A celestial arena survivor for the browser, built for CrazyGames (SDK v3 integra
 - Red giants go supernova when they die, and solar flares erupt under you (and ahead of you) all run long, so standing still gets you burned
 - **Star Atlas** on the menu: every enemy and boss with its behaviour, a counter-tip and your lifetime tally. Stars stay locked until they first enter your glow
 - **Never stand still:** linger inside one small patch of sky for 3 seconds and the Veil starts closing in. Your mass burns several times faster and solar flares rain down on you until you move
-- A leaner swarm (at most 110 on screen) where each star is sturdier and quicker, so runs stay hard without the lag. Mass refills (+25) are rare
+- A leaner swarm (at most 70 on screen) where each star is sturdier and quicker, so runs stay hard without the lag. Mass refills (+25) are rare
 - **Procedural cosmic soundscape:** everything is synthesised live with Web Audio: a drone and starlight arpeggio that intensify with the run, crystal chimes when stars shatter, solar-wind dashes and deep cinematic hits for bosses
 - Every enemy is a dark mirror of your own star: the same glyph language (circle, 4-point star, crescent, triangle, diamond, hexagon) with echo outlines and rays, but hollow-cored and corrupted by the Veil
 - **Opening cutscene** with its own score, letterboxing, a slow camera push and a lens-flare ignition; on your first run and before the tutorial (skippable, and replayable from INTRO on the menu)

@@ -542,7 +542,7 @@ function reset(){
 
 /* ================================================================ spawning */
 function spawnAt(type,x,y,o={}){
-  const T=ET[type], th=threat(), boss=type.startsWith("boss"), sc=(1+time/65+(time/300)**2)*(boss?1+(th-1)*.6:th*(1+Math.min(time/200,1.2)));
+  const T=ET[type], th=threat(), boss=type.startsWith("boss"), sc=(1+time/65+(time/300)**2)*(boss?1+(th-1)*.6:th*(1+Math.min(time/180,1.5)));
   const e={id:nextId++,t:type,x,y,vx:o.vx||0,vy:o.vy||0,r:T.r,hp:T.hp*sc*(boss?1+bosses*.5:1),max:0,sp:T.sp*(1+Math.min(time/360,.6))*(1+Math.min((th-1)*.12,.2)),dmg:T.dmg*(1+Math.min(time/400,1.2)),
     xp:T.xp,flash:0,ph:rand(0,TAU),hcd:0,rot:rand(0,TAU),seed:rand(0,1000),age:0,cd:rand(1,2.2),st:0,tm:0,sh:type==="boss"?3.5:0,sum:6,phase:1,vol:3,sp3:0,dc:4,dirx:0,diry:0,elite:false,dead:false,slam:0,slT:0};
   if(!boss&&type!=="mini"&&time>60&&Math.random()<.05+Math.min(time/4000,.1)+Math.min((P.pw||0)*.002,.08)){e.elite=true;e.hp*=3;e.r*=1.25;e.xp*=3;e.dmg*=1.3;}
@@ -634,7 +634,7 @@ function kill(e){
   decals.push({x:e.x,y:e.y,r:e.r*rand(.9,1.5),c:T.c[1],a:.32,rot:rand(0,TAU)}); if(decals.length>70) decals.shift();
   dropLoot(e);
   // mass only comes back from the swarm you shatter
-  const gain=(boss?45:(1.6+T.xp*1.3)*(e.elite?3:1))*massGainM();
+  const gain=(boss?45:(2+T.xp*1.6)*(e.elite?3:1))*massGainM();
   P.hp=Math.min(P.maxHp,P.hp+gain);
   if(motes.length<120) for(let i=0,n=boss?18:1+(e.elite?3:0);i<n;i++) motes.push({x:e.x+rand(-8,8),y:e.y+rand(-8,8),vx:rand(-160,160),vy:rand(-160,160),l:0});
   if(e.t==="tank"&&state==="play") hz.push({x:e.x,y:e.y,r:e.r*3.4,t:1.1,m:1.1,d:e.dmg*.7,sn:1}); // red giants go supernova
@@ -843,13 +843,13 @@ function update(dt){
   // spawning
   spawnT-=dt;
   if(spawnT<=0&&!tut){
-    spawnT=Math.max(.26,.9-time/200)/(.75+.6*LF())/(1+(threat()-1)*.4); // a brighter glow draws more of the dark
-    const n=1+Math.floor(time/90)+Math.floor((P.pw||0)/20);
-    for(let i=0;i<n&&enemies.length<110;i++) spawn(pickType());
+    spawnT=Math.max(.45,1.2-time/260)/(.75+.6*LF())/(1+(threat()-1)*.4); // a brighter glow draws more of the dark
+    const n=1+Math.floor(time/150)+Math.floor((P.pw||0)/30);
+    for(let i=0;i<n&&enemies.length<70;i++) spawn(pickType());
   }
   if(!tut&&bossIdx<BOSS_AT.length&&time>=BOSS_AT[bossIdx]){ spawn(BOSS_T[bossIdx],rand(0,TAU)); rings.push({x:P.x,y:P.y,r:10,m:900,l:1,c:"255,210,90"}); sfx.boss(); cinematic(ET[BOSS_T[bossIdx]].g,.8); banner={txt:BOSS_N[bossIdx].toUpperCase(),sub:"emerges from the void",t:2.8}; bossIdx++; }
   if(!tut) swarmT-=dt;
-  if(swarmT<=0){ swarmT=50; const t=pick1(time>100?["slime","bat","spiky","mini","wdwarf"]:["slime","bat","spiky","mini"]), n=10+Math.min(8,Math.floor(time/60)+Math.floor((P.pw||0)/12));
+  if(swarmT<=0){ swarmT=50; const t=pick1(time>100?["slime","bat","spiky","mini","wdwarf"]:["slime","bat","spiky","mini"]), n=8+Math.min(6,Math.floor(time/80)+Math.floor((P.pw||0)/15));
     for(let i=0;i<n;i++) spawn(t,i*TAU/n); banner={txt:"SWARM!",sub:"Break the circle",t:2.2}; sfx.boss(); }
 
   // enemies
@@ -868,7 +868,7 @@ function update(dt){
     else if(e.t==="wdwarf"){ const s=Math.sin(e.age*4+e.seed)*.7; tx+=-dy/d*s; ty+=dx/d*s; } // dense and quick, jinking side to side
     else if(e.t==="wolf"){ e.cd-=dt; if(e.cd<=0&&d<620){ e.cd=3.2; const o=rand(0,TAU); for(let i=0;i<10;i++) shootAt(e,175,e.dmg*.6,o+i*TAU/10); } }
     else if(e.t==="magnetar"){ if(d<300) sp*=.3; if(d<460&&P.dashT<=0){ const f=110*(1-d/460); P.x-=dx/d*f*dt; P.y-=dy/d*f*dt; } } // drags you toward it; dashing breaks free
-    else if(e.t==="nursery"){ e.sum-=dt; if(e.sum<=0){ e.sum=5; if(enemies.length<100) for(let i=0;i<3;i++){ const a=rand(0,TAU); spawnAt("mini",e.x+Math.cos(a)*(e.r+16),e.y+Math.sin(a)*(e.r+16),{vx:Math.cos(a)*200,vy:Math.sin(a)*200}); } } }
+    else if(e.t==="nursery"){ e.sum-=dt; if(e.sum<=0){ e.sum=5; if(enemies.length<65) for(let i=0;i<3;i++){ const a=rand(0,TAU); spawnAt("mini",e.x+Math.cos(a)*(e.r+16),e.y+Math.sin(a)*(e.r+16),{vx:Math.cos(a)*200,vy:Math.sin(a)*200}); } } }
     else if(e.t==="ringer"){ if(d<280) sp*=.15; e.cd-=dt; if(e.cd<=0&&d<520){ e.cd=3.4; shocks.push({x:e.x,y:e.y,r:e.r,max:360,d:e.dmg,hit:false}); sfx.nova(); } }
     else if(e.t==="comet"){ // drifts, locks on, then streaks straight through where you were
       if(e.st===0){ sp*=.7; e.cd-=dt; if(e.cd<=0&&d<620){ e.st=1; e.tm=.45; e.dirx=dx/d; e.diry=dy/d; } }
