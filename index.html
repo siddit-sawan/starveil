@@ -451,6 +451,18 @@ const ET={ // the swarm: dying and wayward stars (red dwarfs, cinders, shooting 
  nursery: {r:40,hp:170,sp:34, dmg:16,xp:8,c:["#e8f0ff","#9a70ff","#1a0a3a"],g:"170,140,255"},   // stellar nursery (spawns cinders)
  ringer:  {r:23,hp:75, sp:66, dmg:13,xp:6,c:["#fff8e0","#ff9ad0","#4a0a3a"],g:"255,150,200"},   // recurrent nova (shock rings)
  quasar:  {r:26,hp:110,sp:52, dmg:16,xp:8,c:["#ffffff","#7ad8ff","#06203a"],g:"120,210,255"},   // quasar (sweeping jets)
+ comet:   {r:16,hp:20, sp:60, dmg:12,xp:2,c:["#ffffff","#9fd8ff","#123a6a"],g:"160,215,255"},   // rogue comet (aims, then streaks past)
+ mirror:  {r:20,hp:40, sp:95, dmg:10,xp:4,c:["#f6f0ff","#c4b0ff","#2a1a5a"],g:"200,180,255"},   // mirror star (circles and fires)
+ leech:   {r:15,hp:26, sp:140,dmg:4, xp:3,c:["#f0ffe8","#9aff6a","#1a4a0a"],g:"150,255,110"},   // void leech (latches on, drains mass)
+ fracture:{r:28,hp:70, sp:68, dmg:13,xp:5,c:["#fff4f0","#ff8a6a","#4a120a"],g:"255,140,110"},   // fracture star (bursts into shards)
+ shard:   {r:11,hp:12, sp:150,dmg:6, xp:1,c:["#fff4f0","#ffb09a","#4a120a"],g:"255,170,150"},   // shard
+ mine:    {r:18,hp:30, sp:40, dmg:26,xp:3,c:["#fffbe8","#ffd84a","#4a3a06"],g:"255,220,90"},    // dormant star (arms, then detonates)
+ phase:   {r:19,hp:36, sp:70, dmg:12,xp:4,c:["#f0fbff","#6af0ff","#0a3a4a"],g:"110,240,255"},   // phase star (blinks beside you)
+ aegis:   {r:26,hp:80, sp:60, dmg:14,xp:6,c:["#eef6ff","#7aa8ff","#0a1a4a"],g:"130,170,255"},   // aegis star (regenerating shield)
+ herald:  {r:24,hp:60, sp:58, dmg:10,xp:6,c:["#fffbe0","#ffe07a","#4a3a0a"],g:"255,225,120"},   // herald (hastens the swarm around it)
+ spinner: {r:22,hp:55, sp:55, dmg:9, xp:5,c:["#fff0fa","#ff70c0","#4a0a30"],g:"255,120,200"},   // spiral star (bullet spirals)
+ nebula:  {r:44,hp:220,sp:30, dmg:14,xp:9,c:["#e8e0ff","#8a6ad0","#0c0620"],g:"150,120,230"},   // dark nebula (slows you inside it)
+ seeker:  {r:17,hp:30, sp:250,dmg:13,xp:4,c:["#fff0e8","#ff5a3a","#4a0a04"],g:"255,100,70"},    // hunter (all momentum, overshoots)
  boss:    {r:84,hp:1000,sp:58,dmg:30,xp:40,c:["#ffd98a","#ff9a3a","#2a1406"],g:"255,180,80"},
  boss2:   {r:80,hp:1200,sp:66,dmg:30,xp:50,c:["#e8d8ff","#a070ff","#120828"],g:"170,110,255"},
  boss3:   {r:90,hp:1500,sp:62,dmg:34,xp:70,c:["#b8fff4","#2ad8c8","#020a10"],g:"60,230,220"}
@@ -558,6 +570,17 @@ function pickType(){
   if(time>200) pool.push(["nursery",1.5]);
   if(time>240) pool.push(["ringer",2]);
   if(time>300) pool.push(["quasar",1.5]);
+  if(time>55)  pool.push(["comet",3]);
+  if(time>70)  pool.push(["leech",2.5]);
+  if(time>85)  pool.push(["seeker",2.5]);
+  if(time>95)  pool.push(["mine",2]);
+  if(time>110) pool.push(["mirror",2.5]);
+  if(time>120) pool.push(["fracture",2]);
+  if(time>140) pool.push(["phase",2.5]);
+  if(time>170) pool.push(["spinner",2]);
+  if(time>190) pool.push(["herald",1.2]);
+  if(time>210) pool.push(["aegis",1.8]);
+  if(time>260) pool.push(["nebula",1]);
   let tot=0; for(const p of pool) tot+=p[1]; let r=Math.random()*tot;
   for(const p of pool){ r-=p[1]; if(r<=0) return p[0]; } return "slime";
 }
@@ -580,6 +603,7 @@ function nearest(x,y,max,used){
 function hit(e,base,kx=0,ky=0,kb=0,quiet=false){
   if(e.dead) return;
   let d=base*P.dmgM*(.85+.35*LF())*(1+.06*P.stage); const crit=Math.random()<P.crit; if(crit) d*=2;
+  if(e.shd>0){ const ab=Math.min(e.shd,d*.85); e.shd-=ab; d-=ab; e.shT=3; }
   e.hp-=d; e.flash=.1;
   if(kb&&!e.t.startsWith("boss")){e.vx+=kx*kb;e.vy+=ky*kb;}
   if(!quiet||crit) addText(e.x,e.y-e.r,Math.round(d),crit);
@@ -615,6 +639,7 @@ function kill(e){
   if(motes.length<120) for(let i=0,n=boss?18:1+(e.elite?3:0);i<n;i++) motes.push({x:e.x+rand(-8,8),y:e.y+rand(-8,8),vx:rand(-160,160),vy:rand(-160,160),l:0});
   if(e.t==="tank"&&state==="play") hz.push({x:e.x,y:e.y,r:e.r*3.4,t:1.1,m:1.1,d:e.dmg*.7,sn:1}); // red giants go supernova
   save.seen[e.t]=(save.seen[e.t]||0)+1;
+  if(e.t==="fracture") for(let i=0;i<3;i++){ const a=i*TAU/3+rand(0,1); spawnAt("shard",e.x,e.y,{vx:Math.cos(a)*280,vy:Math.sin(a)*280}); }
   if(e.t==="splitter") for(let i=0;i<2;i++) spawnAt("mini",e.x+rand(-10,10),e.y+rand(-10,10),{vx:rand(-240,240),vy:rand(-240,240)});
   if(boss){
     bosses++; CG.happy(); if(e.t==="boss3") victory=true; shake=26; flash=1; sfx.pop(); cinematic(ET[e.t].g,1.5);
@@ -799,7 +824,7 @@ function update(dt){
   if(wantDash){ wantDash=false;
     if(P.dashCd<=0&&P.dashT<=0){ P.dashT=.18; P.dashCd=P.dashMax; P.inv=Math.max(P.inv,.35); P.vx=P.dx*740; P.vy=P.dy*740; if(tut) tut.dashes++; sfx.dash(); burst(P.x,P.y,10,"#bff",200,.3,4); } }
   if(P.dashT>0){ P.dashT-=dt; trail.push({x:P.x,y:P.y,l:.3}); }
-  else { P.vx+=(ix*P.speed-P.vx)*Math.min(1,dt*12); P.vy+=(iy*P.speed-P.vy)*Math.min(1,dt*12); }
+  else { const ps=P.speed*((P.slowT=(P.slowT||0)-dt)>0?.55:1); P.vx+=(ix*ps-P.vx)*Math.min(1,dt*12); P.vy+=(iy*ps-P.vy)*Math.min(1,dt*12); }
   P.x+=P.vx*dt; P.y+=P.vy*dt; P.walk+=Math.hypot(P.vx,P.vy)*dt*.045;
   const pm=Math.hypot(P.x,P.y); if(pm>ARENA-P.r){P.x*=(ARENA-P.r)/pm;P.y*=(ARENA-P.r)/pm;}
   P.inv=Math.max(0,P.inv-dt); P.hurt=Math.max(0,P.hurt-dt);
@@ -828,6 +853,7 @@ function update(dt){
     for(let i=0;i<n;i++) spawn(t,i*TAU/n); banner={txt:"SWARM!",sub:"Break the circle",t:2.2}; sfx.boss(); }
 
   // enemies
+  const heralds=enemies.filter(o=>o.t==="herald"&&!o.dead);
   for(const e of enemies){
     if(e.dead) continue;
     const T=ET[e.t], boss=e.t.startsWith("boss");
@@ -844,6 +870,31 @@ function update(dt){
     else if(e.t==="magnetar"){ if(d<300) sp*=.3; if(d<460&&P.dashT<=0){ const f=110*(1-d/460); P.x-=dx/d*f*dt; P.y-=dy/d*f*dt; } } // drags you toward it; dashing breaks free
     else if(e.t==="nursery"){ e.sum-=dt; if(e.sum<=0){ e.sum=5; if(enemies.length<100) for(let i=0;i<3;i++){ const a=rand(0,TAU); spawnAt("mini",e.x+Math.cos(a)*(e.r+16),e.y+Math.sin(a)*(e.r+16),{vx:Math.cos(a)*200,vy:Math.sin(a)*200}); } } }
     else if(e.t==="ringer"){ if(d<280) sp*=.15; e.cd-=dt; if(e.cd<=0&&d<520){ e.cd=3.4; shocks.push({x:e.x,y:e.y,r:e.r,max:360,d:e.dmg,hit:false}); sfx.nova(); } }
+    else if(e.t==="comet"){ // drifts, locks on, then streaks straight through where you were
+      if(e.st===0){ sp*=.7; e.cd-=dt; if(e.cd<=0&&d<620){ e.st=1; e.tm=.45; e.dirx=dx/d; e.diry=dy/d; } }
+      else if(e.st===1){ sp=0; tx=ty=0; k=10; e.tm-=dt; if(e.tm<=0){ e.st=2; e.tm=1.3; } }
+      else { tx=e.dirx; ty=e.diry; sp=560; k=14; e.tm-=dt; if(e.tm<=0){ e.st=0; e.cd=2; } } }
+    else if(e.t==="mirror"){ // circles you at range, firing as it goes
+      if(e.dir===undefined) e.dir=e.seed>500?1:-1; const q=clamp((d-250)/120,-1,1); tx=dx/d*q-dy/d*e.dir; ty=dy/d*q+dx/d*e.dir; const m=Math.hypot(tx,ty)||1; tx/=m; ty/=m;
+      e.cd-=dt; if(e.cd<=0&&d<540){ e.cd=2.4; shootAt(e,270,e.dmg); } }
+    else if(e.t==="leech"){ // latches on and drinks your mass until you dash it off
+      if(e.lat){ if(P.dashT>0){ e.lat=false; e.vx=-e.ox*14; e.vy=-e.oy*14; e.hcd=0; } else { sp=0; tx=ty=0; k=30; e.x=P.x+e.ox; e.y=P.y+e.oy; P.hp-=(2.5+time/80)*dt; } }
+      else if(d<e.r+P.r+4&&P.dashT<=0&&P.inv<=0){ e.lat=true; const a=Math.atan2(-dy,-dx); e.ox=Math.cos(a)*(P.r+e.r*.35); e.oy=Math.sin(a)*(P.r+e.r*.35); } }
+    else if(e.t==="mine"){ // drifts dormant; get close and it arms, then detonates
+      if(e.st===0){ if(d<150){ e.st=1; e.tm=.95; } }
+      else { sp=0; tx=ty=0; k=10; e.tm-=dt;
+        if(e.tm<=0){ e.dead=true; sfx.boom(); shake=Math.max(shake,9); rings.push({x:e.x,y:e.y,r:10,m:150,l:1,c:"255,220,90"}); burst(e.x,e.y,24,"#ffd84a",340,.6,5);
+          if(Math.hypot(P.x-e.x,P.y-e.y)<135+P.r*.5) hurtPlayer(e.dmg,e.x,e.y); if(state!=="play") return; continue; } } }
+    else if(e.t==="phase"){ // blinks to a point beside you after a brief shimmer
+      e.cd-=dt; if(e.st===0&&e.cd<=0&&d<700){ e.st=1; e.tm=.6; const a=rand(0,TAU), rr=rand(110,170); e.bx=P.x+Math.cos(a)*rr; e.by=P.y+Math.sin(a)*rr; }
+      if(e.st===1){ sp*=.3; e.tm-=dt; if(e.tm<=0){ burst(e.x,e.y,10,T.c[1],200,.4,4); e.x=e.bx; e.y=e.by; e.vx=e.vy=0; burst(e.x,e.y,12,"#ffffff",220,.4,4); e.st=0; e.cd=3.2; } } }
+    else if(e.t==="aegis"){ if(e.shd===undefined){ e.shd=e.max*.6; e.shT=0; } e.shT-=dt; if(e.shT<=0) e.shd=Math.min(e.max*.6,e.shd+e.max*.25*dt); } // shield regrows when left alone
+    else if(e.t==="spinner"){ // hangs back and sprays a slow double spiral
+      if(d<260){tx=-tx;ty=-ty;} else if(d<380){const px=-ty,py=tx;tx=px;ty=py;sp*=.5;}
+      e.sp3-=dt; if(e.sp3<=0&&d<620){ e.sp3=.34; const a=e.age*2.6; shootAt(e,165,e.dmg*.7,a); shootAt(e,165,e.dmg*.7,a+Math.PI); } }
+    else if(e.t==="nebula"){ if(d<e.r*3.2) P.slowT=.15; } // its cold dark drags at you
+    else if(e.t==="seeker"){ // all momentum: accelerates hard at you and overshoots
+      e.vx+=dx/d*440*dt; e.vy+=dy/d*440*dt; const v=Math.hypot(e.vx,e.vy); if(v>e.sp){ e.vx*=e.sp/v; e.vy*=e.sp/v; } k=0; }
     else if(e.t==="quasar"){ // keeps its distance, then sweeps twin jets across you: 0 idle, 1 warning, 2 firing
       if(d<300){tx=-tx;ty=-ty;} else if(d<440){const px=-ty,py=tx;tx=px;ty=py;sp*=.5;}
       e.tm-=dt; if(e.tm<=0){ e.st=(e.st+1)%3; e.tm=[2.2,.9,2.4][e.st]; if(e.st===1) e.ja=Math.atan2(dy,dx)-.9; }
@@ -877,6 +928,7 @@ function update(dt){
         for(let i=0;i<8;i++){ const a=i*TAU/8; spawnAt(ph===3?"shade":"spiky",e.x+Math.cos(a)*(e.r+40),e.y+Math.sin(a)*(e.r+40)); } }
       if(e.phase>=2){ e.vol-=dt; if(e.vol<=0){ e.vol=e.phase===3?2.2:3.4; const n=e.phase===3?16:12, off=rand(0,TAU); for(let i=0;i<n;i++) shootAt(e,210,e.dmg*.45,off+i*TAU/n); } }
     }
+    if(heralds.length&&!boss) for(const h of heralds) if(h!==e&&(h.x-e.x)**2+(h.y-e.y)**2<48400){ sp*=1.35; break; } // a herald's call quickens the swarm
     e.vx+=(tx*sp-e.vx)*Math.min(1,dt*k); e.vy+=(ty*sp-e.vy)*Math.min(1,dt*k);
     e.x+=e.vx*dt; e.y+=e.vy*dt;
     const em=Math.hypot(e.x,e.y), lim=ARENA-e.r; if(em>lim){e.x*=lim/em;e.y*=lim/em;}
@@ -1051,6 +1103,18 @@ const ATLAS={
   magnetar:{n:"Magnetar",k:"Gravity well",d:"A neutron star with a crushing magnetic field. Get close and it drags you toward it.",tip:"Dashing breaks its pull. Never fight one with your back to a crowd."},
   nursery: {n:"Stellar Nursery",k:"Spawner",d:"A drifting cloud of gas where new stars are born. It keeps flinging out stellar cinders.",tip:"Kill it early, or it buries you in cinders."},
   ringer:  {n:"Recurrent Nova",k:"Shock rings",d:"A star that erupts again and again. Each eruption sends out an expanding shock ring.",tip:"It glows pink before erupting. Dash through the ring or stay out of reach."},
+  comet:   {n:"Rogue Comet",k:"Charger",d:"A wanderer flung loose from its orbit. It drifts, locks onto you, then streaks in a straight line.",tip:"When the blue line lights up, step off it."},
+  leech:   {n:"Void Leech",k:"Latcher",d:"A sliver of the Veil that clamps onto your light and drinks your mass.",tip:"Dash to tear it loose."},
+  seeker:  {n:"Hunter",k:"Momentum",d:"Pure acceleration. It hurtles at you, overshoots and comes screaming back.",tip:"Sidestep at the last moment and let it fly past."},
+  mine:    {n:"Dormant Star",k:"Detonator",d:"A cold star that hangs in the dark. Come too close and it wakes, arms and detonates.",tip:"Back out of the yellow ring before it fills."},
+  mirror:  {n:"Mirror Star",k:"Orbiter",d:"It circles you at a distance like a dark moon, firing as it goes.",tip:"Ranged weapons and Comets reach it. Don't chase it."},
+  fracture:{n:"Fracture Star",k:"Splits",d:"A brittle crystal star that bursts into three fast shards when broken.",tip:"Break it from range so the shards scatter before they reach you."},
+  shard:   {n:"Shard",k:"Fragment",d:"A splinter of a fractured star. Small, sharp and quick.",tip:"Orbiting weapons catch them as they dart in."},
+  phase:   {n:"Phase Star",k:"Blinker",d:"It shimmers, vanishes, and reappears right beside you.",tip:"Watch for the cyan ring: that's where it lands."},
+  spinner: {n:"Spiral Star",k:"Bullet spiral",d:"It hangs back and sprays a slow double spiral of plasma.",tip:"Weave through the gaps and close in."},
+  herald:  {n:"Herald",k:"Support",d:"A bright beacon of the Veil. Every star within its golden ring moves faster.",tip:"Kill the Herald first and the pack slows down."},
+  aegis:   {n:"Aegis Star",k:"Shielded",d:"Wrapped in a hexagonal shield that soaks most damage and regrows if left alone.",tip:"Keep the pressure on. Once the shield breaks, it can't recover while you keep hitting it."},
+  nebula:  {n:"Dark Nebula",k:"Slowing field",d:"A drifting cloud of cold dark. Inside its ring your light is sluggish.",tip:"Don't fight inside the cloud. Pull the swarm out of it."},
   quasar:  {n:"Quasar",k:"Sweeping jets",d:"A feeding black hole that keeps its distance and sweeps twin jets of plasma across the arena.",tip:"A dashed line warns you. Move off the line, or dash through the beam."},
   bat:     {n:"Cepheid",k:"Variable star",d:"Throbs with light and weaves from side to side as it closes in, so it's hard to pin down.",tip:"Area weapons like Pulsar Wave and Corona catch the weave."},
   shade:   {n:"Black Dwarf",k:"Hidden",d:"A burnt-out star that gives off no light. It only shows inside your glow.",tip:"Keep your mass high. A bigger glow reveals them sooner."},
@@ -1435,6 +1499,18 @@ const FOE={
   wolf:    {s:"lumen",rays:16,inner:6,halo:2.3},
   magnetar:{s:"volt",inner:4,tend:4,halo:2.2},
   ringer:  {s:"circle",rays:8,inner:8,echo:"nova",halo:2.4},
+  comet:   {s:"ember",inner:3,halo:2.2},
+  mirror:  {s:"rigel",rays:10,inner:5,halo:2.3},
+  leech:   {s:"aqua",inner:3,tend:4,halo:2.2},
+  fracture:{s:"polaris",rays:8,inner:8,halo:2.3},
+  shard:   {s:"nova",inner:4,echo:false,halo:2.2},
+  mine:    {s:"volt",inner:4,halo:2.2},
+  phase:   {s:"altair",inner:5,halo:2.3},
+  aegis:   {s:"lumen",inner:6,halo:2.3},
+  herald:  {s:"circle",rays:12,inner:6,echo:"polaris",halo:2.4},
+  spinner: {s:"nova",rays:8,inner:4,halo:2.3},
+  nebula:  {s:"circle",rays:6,inner:7,tend:8,halo:2.4},
+  seeker:  {s:"ember",rays:3,inner:3,halo:2.2},
   binA:    {t:"splitter",sc:.55,s:"circle",inner:5,halo:2.2},
   binB:    {t:"splitter",sc:.4,s:"circle",inner:5,halo:2.2,c:BLUE}
 };
@@ -1622,6 +1698,19 @@ function drawEnemy(e){
     case"boss": dObelisk(e,r,T,edge); body=false; break;
     case"boss2": dEclipse(e,r,T,edge); body=false; break;
     case"boss3": dHorizon(e,r,T,edge); body=false; break;
+    case"comet": if(e.st===1&&!pt){ C.strokeStyle=`rgba(160,215,255,${.25+.3*Math.sin(clock*30)})`; C.lineWidth=r; C.lineCap="round"; C.beginPath(); C.moveTo(x,y); C.lineTo(x+e.dirx*600,y+e.diry*600); C.stroke(); }
+      if(e.st===2) stamp(SP.tail("ice"),x,y,mv,k*1.1); stampF(SP.foe("comet",0),x,y,(e.st?Math.atan2(e.diry,e.dirx):face)+Math.PI/2,k,fl); break;
+    case"seeker": if(Math.hypot(e.vx,e.vy)>160) stamp(SP.tail("fire"),x,y,mv,k*.9); stampF(SP.foe("seeker",fr(.6,NF)),x,y,mv+Math.PI/2,k,fl); break;
+    case"mine": if(e.st===1){ const f=1-e.tm/.95; ringL(x,y,135,`rgba(255,220,90,${.3+.4*Math.sin(clock*(20+f*30))})`,2.5,[8,6]); C.fillStyle=`rgba(255,200,80,${.05+.12*f})`; C.beginPath(); C.arc(x,y,135*f,0,TAU); C.fill(); glow(x,y,r*3,"rgba(255,220,90,.9)",f); }
+      stampF(SP.foe("mine",0),x,y,e.rot*(e.st?6:.4),k,fl); break;
+    case"phase": if(e.st===1&&!pt){ const f=1-e.tm/.6; ringL(e.bx,e.by,r*(2.2-f*1.2),`rgba(110,240,255,${.3+.5*f})`,2); glow(e.bx,e.by,r*2,"rgba(110,240,255,.8)",f*.7); }
+      stampF(SP.foe("phase",fr(.5,NF)),x,y,e.rot*.4,k,e.st===1?(Math.sin(clock*40)>0):fl); break;
+    case"aegis": stampF(SP.foe("aegis",fr(.4,NF)),x,y,e.rot*.25,k,fl);
+      if(e.shd>0){ const a=e.shd/(e.max*.6); poly(x,y,r*1.75,6,clock*.4); C.fillStyle=`rgba(130,170,255,${.08*a})`; C.fill(); C.strokeStyle=`rgba(190,215,255,${.25+.55*a})`; C.lineWidth=2.2; C.stroke(); } break;
+    case"herald": if(!pt) ringL(x,y,220,`rgba(255,225,120,${.08+.06*Math.sin(clock*3)})`,1.5,[4,10]); stampF(SP.foe("herald",fr(.4,NF)),x,y,e.rot*.3,k,fl); break;
+    case"nebula": if(!pt){ glow(x,y,r*3.4,"rgba(110,80,200,.5)",.35); ringL(x,y,r*3.2,"rgba(170,140,255,.18)",1.4,[3,9]); } stampF(SP.foe("nebula",fr(.25,NF)),x,y,e.rot*.1,k,fl); break;
+    case"leech": stampF(SP.foe("leech",fr(.8,NF)),x,y,e.lat?Math.atan2(-e.oy,-e.ox):mv,k,fl); if(e.lat) seg(x,y,P.x,P.y,"rgba(150,255,110,.5)",3); break;
+    case"mirror": case"fracture": case"shard": case"spinner": stampF(SP.foe(e.t,fr(.5,NF)),x,y,e.rot*(e.t==="spinner"?2:.5),k,fl); break;
   }
   if(body&&lv>=1) for(let i=0;i<Math.min(3,lv);i++){ const a=e.rot*1.6+i*TAU/3, s=Math.max(2.2,r*.13)/6; // captured planets
     stamp(SP.planet(i),x+Math.cos(a)*r*1.5,y+Math.sin(a)*r*1.5,0,s); }
