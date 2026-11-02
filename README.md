@@ -5,8 +5,9 @@ A celestial arena survivor for the browser, built for CrazyGames (SDK v3 integra
 **You are a newborn star. Your mass is your life.** It burns away every second, and only the swarm you shatter can feed it. More mass means a wider glow, longer reach and harder hits, but it also draws more of the void.
 
 - **Your star grows more complex as it levels:** Spark → Star → Giant → Pulsar → Galaxy. Each stage adds rays, orbiting moons, beams and spiral arms, plus +6% damage
-- 6 stars (Sol, Nova, Luna, Vega, Sirius, Quasar), each built on its own primitive: circle, 4-point star, crescent, triangle, diamond, hexagon
-- 8 weapons that can evolve (max weapon + its paired passive), and 8 passives
+- 9 stars (Sol, Nova, Luna, Vega, Sirius, Quasar, Altair, Polaris, Rigel), each built on its own primitive: circle, 4-point star, crescent, triangle, diamond, hexagon, 5-point star, compass star, pentagon
+- 11 weapons that can evolve (max weapon + its paired passive), and 8 passives. New: **Solar Lance** (piercing light beams → Sunspear), **Gravity Well** (black holes that drag the swarm in and collapse → Singularity) and **Constellation** (a wheel of laser-linked stars → Zodiac)
+- **Cinematic beats:** evolutions, star-stage ascensions and bosses slow time, push the camera in and break god rays across a letterboxed screen
 - 9 swarm types, all wayward stars: red dwarfs, stellar cinders, shooting stars, red giants, cepheids (pulsing variable stars), binary stars, pulsars that lock their beams on you, flare stars that erupt and charge, and black dwarfs that only show inside your glow. Each burns with its own corona and picks up orbiting planets as the run goes on
 - 6 late-run stars with their own attacks: white dwarfs, Wolf-Rayet stars (radial bursts), magnetars (pull you in), stellar nurseries (spawn cinders), recurrent novas (shock rings) and quasars (sweeping jets)
 - **Threat scaling:** every upgrade past your starting kit makes the swarm tougher, faster and denser (shown as THREAT on the HUD)

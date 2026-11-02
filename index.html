@@ -229,11 +229,11 @@ let adPlaying = false, userMute = false;
 /* ================================================================ setup / utils */
 const cv = document.getElementById("c"), ctx = cv.getContext("2d");
 let C = ctx;                       // active draw context (swapped for menu portraits)
-let W=0,H=0,DPR=1,Z=1,dprCap=1.5,perfT=0;
+let W=0,H=0,DPR=1,Z=1,Zb=1,slowmo=1,cz=1,cineFx=null,dprCap=1.5,perfT=0;
 let bgGrad=null;
 function resize(){
   DPR = Math.min(window.devicePixelRatio||1, dprCap);
-  W = innerWidth; H = innerHeight; Z = Math.max(.65, Math.min(1.25, Math.min(W,H)/760));
+  W = innerWidth; H = innerHeight; Zb = Math.max(.65, Math.min(1.25, Math.min(W,H)/760)); Z = Zb*cz;
   cv.width = W*DPR; cv.height = H*DPR; bgGrad=null;
 }
 addEventListener("resize", ()=>{ resize(); if(typeof warmSprites==="function"&&Math.abs(Math.min(2,Math.max(1,Math.ceil(DPR*Z*4)/4))-SK)>.24) warmSprites(); }); resize();
@@ -326,6 +326,9 @@ const sfx = {
   dash:()=>once("dash",.1,()=>noise({d:.3,v:.1,f:500,f2:3600,q:1.5,verb:.25})),                                                                  // solar wind
   heal:()=>once("heal",.15,()=>{ for(let i=0;i<3;i++) bell(note(587,i*2+2),.7,.03,{at:i*.07}); }),
   level:()=>{ for(let i=0;i<5;i++) bell(note(440,i*2+3),1.2,.045,{at:i*.085,verb:.75}); noise({d:1.4,v:.035,f:4500,f2:9000,q:.5,type:"highpass",verb:.7}); },
+  lance:()=>once("lance",.08,()=>{ voice({f:2400,d:.4,v:.045,type:"sawtooth",slide:-1900,cut:5200,verb:.4}); noise({d:.28,v:.07,f:7000,f2:2200,q:.8,type:"highpass",verb:.35}); bell(1174.66,.7,.03); }),
+  well:()=>once("well",.2,()=>{ voice({f:150,d:1.5,v:.14,type:"sine",slide:-110,verb:.5}); noise({d:1.4,v:.06,f:2200,f2:110,q:2,verb:.5}); }),
+  cine:()=>{ braam(0,55,.16); for(let i=0;i<4;i++) bell(note(587,i*2+3),1.8,.04,{at:.18+i*.09,verb:.95}); },
   boss:()=>braam(0,41.2,.2)
 };
 /* in-run score: a living drone with a starlight arpeggio over it, intensifying as the run (and the threat) builds */
@@ -405,6 +408,9 @@ const CHARS=[ // ids are kept from older saves; names and looks are celestial
  {id:"ember",name:"Vega",  cost:850, w:["flame"],hp:110,spd:270,dmg:.18,desc:"Starts with Corona. +18% damage.",c:["#fff0e0","#ff9a5a","#c4422a"]},
  {id:"volt", name:"Sirius",cost:1200,w:["lightning"],hp:80, spd:305,crit:.12,desc:"Starts with Ion Arc. +12% crit, very fast.",c:["#e8fdff","#6fe3ff","#1a8bb0"]},
  {id:"lumen",name:"Quasar",cost:1800,w:["meteor","chakram"],hp:100,spd:275,xp:.2,desc:"Starts with Meteor Shower + Saturn Ring. +20% XP.",c:["#f4e8ff","#b48cff","#5a35c8"]},
+ {id:"altair", name:"Altair", cost:2400,w:["lance"],hp:95, spd:280,dmg:.1,crit:.06,desc:"Starts with Solar Lance. +10% damage, +6% crit.",c:["#fffbea","#ffe28a","#d08a1a"]},
+ {id:"polaris",name:"Polaris",cost:3000,w:["well"], hp:120,spd:262,armor:.08,haste:.06,desc:"Starts with Gravity Well. Sturdy, 6% faster cooldowns.",c:["#eafffb","#7af0d8","#178a7a"]},
+ {id:"rigel",  name:"Rigel",  cost:3600,w:["const"],hp:90, spd:300,haste:.1,desc:"Starts with Constellation. Swift, 10% faster cooldowns.",c:["#eef4ff","#8ab4ff","#2a4ac0"]},
 ];
 const WEAPONS={
  petals:   {name:"Orbiting Moons",icon:"☾",col:"#cfdcff",desc:"Moons circle you and crush nearby foes.",up:"+1 moon, wider orbit, more damage"},
@@ -414,7 +420,10 @@ const WEAPONS={
  flame:    {name:"Corona",icon:"☀",col:"#ffb46a",desc:"Solar flares scorch everything close.",up:"Wider corona, hotter flares"},
  bubbles:  {name:"Comets",icon:"☄",col:"#9ff7ff",desc:"Comets hunt down enemies.",up:"More comets, faster, stronger"},
  meteor:   {name:"Meteor Shower",icon:"✸",col:"#ff9a5a",desc:"Marks foes, then drops blazing meteors.",up:"More meteors, bigger impacts"},
- chakram:  {name:"Saturn Ring",icon:"⊖",col:"#ffd98a",desc:"A ringed planet that cuts out and returns.",up:"More rings, longer range"}
+ chakram:  {name:"Saturn Ring",icon:"⊖",col:"#ffd98a",desc:"A ringed planet that cuts out and returns.",up:"More rings, longer range"},
+ lance:    {name:"Solar Lance",icon:"↗",col:"#ffe9a8",desc:"A searing beam of light pierces every foe in a line.",up:"Wider, stronger, faster beams"},
+ well:     {name:"Gravity Well",icon:"◍",col:"#b9a2ff",desc:"Opens a black hole that drags foes in, then collapses.",up:"Bigger pull, harder collapse"},
+ const:    {name:"Constellation",icon:"✳",col:"#a9c8ff",desc:"Bound stars wheel around you, their laser links cutting through the swarm.",up:"More stars, wider, hotter links"}
 };
 const PASSIVES={
  might: {name:"Gravity",icon:"●",col:"#ff8a8a",desc:"+15% damage"},
@@ -455,7 +464,10 @@ const EVOS={
  flame:    {p:"armor", name:"Solar Flare",  icon:"☼",desc:"A blazing corona that melts the void."},
  bubbles:  {p:"growth",name:"Comet Tide",   icon:"☄",desc:"A swarm of unstoppable comets."},
  meteor:   {p:"magnet",name:"Starfall",     icon:"✸",desc:"Double the meteors, double the craters."},
- chakram:  {p:"swift", name:"Eclipse Ring", icon:"◐",desc:"A storm of returning rings."}
+ chakram:  {p:"swift", name:"Eclipse Ring", icon:"◐",desc:"A storm of returning rings."},
+ lance:    {p:"might", name:"Sunspear",     icon:"⇶",desc:"A fan of three searing lances, twice as wide."},
+ well:     {p:"magnet",name:"Singularity",  icon:"●",desc:"Vast, long-lived black holes with a devastating collapse."},
+ const:    {p:"armor", name:"Zodiac",       icon:"✴",desc:"A great star-sign of laser links that crosses through its own heart."}
 };
 const BOSS_AT=[180,360,600], BOSS_T=["boss","boss2","boss3"], BOSS_N=["The Obelisk","The Eclipse","Event Horizon"];
 /* your star starts as one simple shape and gains geometry as it levels */
@@ -470,7 +482,7 @@ let theme=THEMES[0], floorGrad=null, rimGrad=null, themeIdx=0;
 function setTheme(i){ themeIdx=i%THEMES.length; theme=THEMES[themeIdx]; bgGrad=floorGrad=rimGrad=null; }
 
 /* ================================================================ game state */
-let hzT=0, hz=[], shocks=[], P, enemies, ebul, bullets, pickups, parts, rings, texts, bolts, decals, bubs, chaks, meteors, novas, trail, wst;
+let hzT=0, hz=[], shocks=[], P, enemies, ebul, bullets, pickups, parts, rings, texts, bolts, decals, bubs, chaks, meteors, novas, trail, wst, lances=[], wells=[];
 let consts, time, kills, shake, spawnT, bossIdx, swarmT, bosses, motes, victory, lightR, shX, shY, revived, runCoins, pending, rerolls, flash, banner, gemCount, nextId, wantDash, bgDust, nebs, lastCard;
 const keys={}; const ptr={down:false,x:0,y:0,sx:0,sy:0,touch:false};
 let cam={x:0,y:0};
@@ -507,7 +519,7 @@ function reset(){
   P={x:0,y:0,vx:0,vy:0,r:22,hp:1,maxHp:0,lvl:1,xp:0,need:6,inv:0,look:0,hurt:0,dx:1,dy:0,dashT:0,dashCd:0,walk:0,yaw:0,tyaw:0,ax:0,ay:0,still:0,camp:0,weapons:{},passives:{},evo:{},rng:1,stage:0};
   wst={}; for(const w of ch.w) addWeapon(w);
   recalc(); P.hp=P.maxHp; P.pw=powerOf();
-  enemies=[];ebul=[];hz=[];shocks=[];bullets=[];pickups=[];parts=[];rings=[];texts=[];bolts=[];decals=[];bubs=[];chaks=[];meteors=[];novas=[];trail=[];motes=[];
+  enemies=[];ebul=[];hz=[];shocks=[];bullets=[];pickups=[];parts=[];rings=[];texts=[];bolts=[];decals=[];bubs=[];chaks=[];meteors=[];novas=[];trail=[];motes=[];lances=[];wells=[];
   time=0;kills=0;shake=0;spawnT=0;bossIdx=0;swarmT=40;hzT=12;victory=false;lightR=lightTarget();shX=shY=0;bosses=0;revived=false;runCoins=0;pending=0;rerolls=2;flash=0;banner=null;gemCount=0;nextId=1;wantDash=false;
   cam={x:0,y:0}; setTheme(0);
   if(!consts){ consts=[]; for(let i=0;i<34;i++){ const a=rand(0,TAU), d=Math.sqrt(Math.random())*ARENA*.92, k={x:Math.cos(a)*d,y:Math.sin(a)*d,pts:[]};
@@ -605,7 +617,7 @@ function kill(e){
   save.seen[e.t]=(save.seen[e.t]||0)+1;
   if(e.t==="splitter") for(let i=0;i<2;i++) spawnAt("mini",e.x+rand(-10,10),e.y+rand(-10,10),{vx:rand(-240,240),vy:rand(-240,240)});
   if(boss){
-    bosses++; CG.happy(); if(e.t==="boss3") victory=true; shake=26; flash=1; sfx.pop();
+    bosses++; CG.happy(); if(e.t==="boss3") victory=true; shake=26; flash=1; sfx.pop(); cinematic(ET[e.t].g,1.5);
     for(const o of enemies) if(!o.dead&&o!==e&&!o.t.startsWith("boss")) { o.hp=-1; o.dead=true; burst(o.x,o.y,6,ET[o.t].c[1],160,.4,3); }
     setTheme(bosses); banner={txt:"Entering "+theme.name,sub:BOSS_N[BOSS_T.indexOf(e.t)]+" defeated!",t:3.2};
   }
@@ -623,14 +635,59 @@ function addXp(v){
   P.xp+=v;
   while(P.xp>=P.need){ P.xp-=P.need; P.lvl++; P.need=Math.round(P.need*1.22+4); pending++; }
   let st=0; for(let i=0;i<STAGES.length;i++) if(P.lvl>=STAGES[i].lv) st=i;
-  if(st>P.stage){ P.stage=st; banner={txt:STAGES[st].name.toUpperCase(),sub:"Your star grows more complex",t:2.6}; flash=.5;
+  if(st>P.stage){ P.stage=st; banner={txt:STAGES[st].name.toUpperCase(),sub:"Your star grows more complex",t:2.6}; cinematic(curChar().c[1].match(/\w\w/g).map(h=>parseInt(h,16)).join(","),.9);
     rings.push({x:P.x,y:P.y,r:10,m:420,l:1,c:"255,240,200"}); burst(P.x,P.y,50,curChar().c[0],380,.9,5); }
 }
 
+function cinematic(col,k=1){ // a beat worth savouring: time slows, the camera leans in, light breaks across the screen
+  slowmo=Math.min(slowmo,.15); cz=Math.max(cz,1+.2*k); cineFx={t:0,d:1.5,col,k}; flash=Math.max(flash,.3*k); shake=Math.max(shake,8*k); sfx.cine();
+}
+function drawCine(){ const c=cineFx, f=c.t/c.d, a=Math.sin(Math.min(1,f*1.6)*Math.PI*.5)*(1-f), px=(P.x-cam.x)*Z+W/2, py=(P.y-cam.y)*Z+H/2, L=Math.hypot(W,H);
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  const g=ctx.createRadialGradient(px,py,0,px,py,L*.8); g.addColorStop(0,`rgba(${c.col},${.42*a})`); g.addColorStop(.35,`rgba(${c.col},${.14*a})`); g.addColorStop(1,`rgba(${c.col},0)`); ctx.fillStyle=g;
+  for(let i=0;i<18;i++){ const ang=i*TAU/18+c.t*.25+(i%2)*.08, w=i%3?.035:.06; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(ang-w)*L,py+Math.sin(ang-w)*L); ctx.lineTo(px+Math.cos(ang+w)*L,py+Math.sin(ang+w)*L); ctx.closePath(); ctx.fill(); } // god rays
+  const rr=f*L*.7; ctx.strokeStyle=`rgba(${c.col},${.7*(1-f)})`; ctx.lineWidth=3+10*(1-f); ctx.beginPath(); ctx.arc(px,py,rr,0,TAU); ctx.stroke(); // the shock front
+  ctx.globalCompositeOperation="source-over";
+  const bh=H*.075*Math.min(1,Math.min(c.t/.25,(c.d-c.t)/.4)); ctx.fillStyle="#000"; ctx.fillRect(0,0,W,bh); ctx.fillRect(0,H-bh,W,bh); // letterbox
+  ctx.restore();
+}
 /* ================================================================ weapons update */
 const cdm=t=>t*P.cdM;
+const segD=(px,py,ax,ay,bx,by)=>{ const vx=bx-ax, vy=by-ay, L=vx*vx+vy*vy||1, t=clamp(((px-ax)*vx+(py-ay)*vy)/L,0,1); return Math.hypot(px-ax-vx*t,py-ay-vy*t); };
 function updateWeapons(dt){
   const w=P.weapons, E=P.evo, R=P.rng;
+  if(w.lance){ // Solar Lance: an instant beam that pierces everything along its line
+    const lv=w.lance,s=wst.lance,ev=E.lance; s.t-=dt;
+    if(s.t<=0){ const tg=nearest(P.x,P.y,700*R);
+      if(tg){ s.t=cdm(2.4-.2*lv)*(ev?.75:1); const base=Math.atan2(tg.y-P.y,tg.x-P.x), nb=ev?3:1+(lv>=4?1:0), L=760+40*lv, wd=(13+2*lv)*(ev?1.8:1), dmg=(28+9*lv)*(ev?1.6:1);
+        for(let b=0;b<nb;b++){ const a=base+(b-(nb-1)/2)*(ev?.24:.16), ca=Math.cos(a), sa=Math.sin(a), hits=[];
+          for(const e of enemies){ if(e.dead) continue; const dx=e.x-P.x, dy=e.y-P.y, t=dx*ca+dy*sa; if(t<0||t>L) continue;
+            if(Math.abs(-dx*sa+dy*ca)<wd+e.r){ if(hits.length<12) hits.push([e.x,e.y]); hit(e,dmg,ca,sa,200); } }
+          lances.push({x:P.x,y:P.y,a,L,w:wd,l:.34,m:.34,ev:!!ev,hits}); }
+        sfx.lance(); shake=Math.max(shake,ev?6:3); }
+      else s.t=.2; } }
+  for(const b of lances) b.l-=dt; if(lances.length) lances=lances.filter(b=>b.l>0);
+  if(w.well){ // Gravity Well: a black hole that drags the swarm in, then collapses
+    const lv=w.well,s=wst.well,ev=E.well; s.t-=dt;
+    if(s.t<=0){ const tg=nearest(P.x,P.y,540*R);
+      if(tg){ s.t=cdm(4.4-.3*lv); const life=2.4+.2*lv+(ev?1.2:0); wells.push({x:tg.x,y:tg.y,r:(150+15*lv)*(ev?1.45:1),l:life,m:life,dmg:(6+2.4*lv)*(ev?1.7:1),burst:(32+12*lv)*(ev?2.4:1),ev:!!ev,tick:0}); sfx.well(); }
+      else s.t=.3; } }
+  for(const g of wells){ g.l-=dt; g.tick-=dt; const tk=g.tick<=0; if(tk) g.tick=.25;
+    each(g.x,g.y,g.r,e=>{ const dx=g.x-e.x, dy=g.y-e.y, d=Math.hypot(dx,dy)||1; if(d>g.r+e.r) return;
+      if(!e.t.startsWith("boss")){ const pull=(60+200*(1-d/g.r))*dt; e.x+=dx/d*Math.min(pull,d); e.y+=dy/d*Math.min(pull,d); }
+      if(tk) hit(e,g.dmg,0,0,0,true); });
+    if(g.l<=0){ each(g.x,g.y,g.r*.8,e=>{ if(Math.hypot(e.x-g.x,e.y-g.y)<g.r*.8+e.r){ const d=Math.hypot(e.x-g.x,e.y-g.y)||1; hit(e,g.burst,(e.x-g.x)/d,(e.y-g.y)/d,320); } });
+      rings.push({x:g.x,y:g.y,r:10,m:g.r*1.25,l:1,c:"190,150,255"}); rings.push({x:g.x,y:g.y,r:4,m:g.r*.6,l:1,c:"255,240,220"});
+      burst(g.x,g.y,26,"#c8b0ff",380,.6,5); shake=Math.max(shake,g.ev?12:7); sfx.boom(); } }
+  if(wells.length) wells=wells.filter(g=>g.l>0);
+  if(w.const){ // Constellation: stars bound by laser links wheel around you
+    const lv=w.const,s=wst.const,ev=E.const, n=3+Math.floor(lv/2)+(ev?2:0), Rr=(150+14*lv)*(ev?1.25:1), dmg=(9+3.2*lv)*(ev?1.7:1);
+    s.ang+=(.85+.08*lv)*dt*(ev?1.25:1); s.tick-=dt; const pts=[];
+    for(let i=0;i<n;i++){ const a=s.ang+i*TAU/n, rr=Rr*(1+.1*Math.sin(clock*1.6+i*1.7)); pts.push([P.x+Math.cos(a)*rr,P.y+Math.sin(a)*rr]); }
+    const step=ev&&n>4?2:1; s.pts=pts; s.step=step; s.n=n;
+    if(s.tick<=0){ s.tick=.2;
+      for(const e of enemies){ if(e.dead) continue; const d0=Math.hypot(e.x-P.x,e.y-P.y); if(d0>Rr*1.15+e.r) continue;
+        for(let i=0;i<n;i++){ const A=pts[i], B=pts[(i+step)%n]; if(segD(e.x,e.y,A[0],A[1],B[0],B[1])<e.r+7){ hit(e,dmg,0,0,0,true); break; } } } } }
   if(w.petals){
     const lv=w.petals,s=wst.petals; s.ang+=(2.2+.25*lv)*dt;
     const {n,orbit,br,dmg}=petalCfg();
@@ -765,7 +822,7 @@ function update(dt){
     const n=1+Math.floor(time/90)+Math.floor((P.pw||0)/20);
     for(let i=0;i<n&&enemies.length<110;i++) spawn(pickType());
   }
-  if(!tut&&bossIdx<BOSS_AT.length&&time>=BOSS_AT[bossIdx]){ spawn(BOSS_T[bossIdx],rand(0,TAU)); rings.push({x:P.x,y:P.y,r:10,m:900,l:1,c:"255,210,90"}); sfx.boss(); shake=14; banner={txt:BOSS_N[bossIdx].toUpperCase(),sub:"emerges from the void",t:2.8}; bossIdx++; }
+  if(!tut&&bossIdx<BOSS_AT.length&&time>=BOSS_AT[bossIdx]){ spawn(BOSS_T[bossIdx],rand(0,TAU)); rings.push({x:P.x,y:P.y,r:10,m:900,l:1,c:"255,210,90"}); sfx.boss(); cinematic(ET[BOSS_T[bossIdx]].g,.8); banner={txt:BOSS_N[bossIdx].toUpperCase(),sub:"emerges from the void",t:2.8}; bossIdx++; }
   if(!tut) swarmT-=dt;
   if(swarmT<=0){ swarmT=50; const t=pick1(time>100?["slime","bat","spiky","mini","wdwarf"]:["slime","bat","spiky","mini"]), n=10+Math.min(8,Math.floor(time/60)+Math.floor((P.pw||0)/12));
     for(let i=0;i<n;i++) spawn(t,i*TAU/n); banner={txt:"SWARM!",sub:"Break the circle",t:2.2}; sfx.boss(); }
@@ -937,7 +994,7 @@ function showCards(){
 function choose(u){
   if(state!=="levelup") return;
   if(u.kind==="w") addWeapon(u.id);
-  else if(u.kind==="evo"){ P.evo[u.id]=true; banner={txt:EVOS[u.id].name.toUpperCase(),sub:"Weapon evolved!",t:2.4}; flash=.6; burst(P.x,P.y,40,"#ffe27a",360,.8,6); }
+  else if(u.kind==="evo"){ P.evo[u.id]=true; banner={txt:EVOS[u.id].name.toUpperCase(),sub:"Weapon evolved!",t:2.4}; burst(P.x,P.y,40,"#ffe27a",360,.8,6); cinematic("255,215,140",1.2); }
   else if(u.kind==="p"){ P.passives[u.id]=(P.passives[u.id]||0)+1; recalc(); if(u.id==="vigor") P.hp=Math.min(P.maxHp,P.hp+25); }
   else { P.hp=Math.min(P.maxHp,P.hp+P.maxHp*.5); runCoins+=50; }
   P.pw=powerOf();
@@ -1178,6 +1235,9 @@ function sigPath(id,x,y,r,rot){
     case"ember": poly(x,y,r*1.25,3,rot-Math.PI/2); break;
     case"volt":  poly(x,y,r*1.2,4,rot); break;
     case"lumen": poly(x,y,r*1.08,6,rot); break;
+    case"altair": starP(x,y,r*1.3,r*.52,5,rot-Math.PI/2); break;
+    case"polaris": starP(x,y,r*1.32,r*.4,8,rot); break;
+    case"rigel": poly(x,y,r*1.15,5,rot-Math.PI/2); break;
     default:     C.beginPath(); C.arc(x,y,r,0,TAU);
   }
 }
@@ -1578,6 +1638,22 @@ function jag(pts){
 }
 function drawWeaponsFx(){
   const w=P.weapons;
+  if(lances.length||wells.length||(w.const&&wst.const&&wst.const.pts)){ C.globalCompositeOperation="lighter"; C.lineCap="round";
+    for(const b of lances){ const f=b.l/b.m, ex=b.x+Math.cos(b.a)*b.L, ey=b.y+Math.sin(b.a)*b.L, col=b.ev?"255,205,120":"255,236,190", e=Math.pow(f,.6);
+      seg(b.x,b.y,ex,ey,`rgba(${col},${.16*e})`,b.w*3.4); seg(b.x,b.y,ex,ey,`rgba(${col},${.55*e})`,b.w*1.25*e+1); seg(b.x,b.y,ex,ey,`rgba(255,255,255,${e})`,b.w*.32*e+1);
+      glow(b.x,b.y,b.w*5,`rgba(${col},.9)`,e); for(const h of b.hits) glow(h[0],h[1],b.w*2.2,`rgba(${col},.9)`,e*.8); }
+    for(const g of wells){ const grow=clamp((g.m-g.l)/.35,0,1), fade=clamp(g.l/.3,0,1), R=g.r*grow, a=grow*fade;
+      ringL(g.x,g.y,R,`rgba(170,130,255,${.22*a})`,1.4,[4,10]);
+      for(let i=0;i<16;i++){ const ang=clock*2.2+i*TAU/16, q=(clock*.9+i/16)%1, d=R*(1-q); C.globalAlpha=a*q; seg(g.x+Math.cos(ang)*d,g.y+Math.sin(ang)*d,g.x+Math.cos(ang+.4)*d*.8,g.y+Math.sin(ang+.4)*d*.8,"rgba(205,180,255,.9)",1.6); }
+      C.globalAlpha=1; glow(g.x,g.y,R*.6,"rgba(150,100,255,.85)",.55*a);
+      C.save(); C.translate(g.x,g.y); C.rotate(clock*1.4); C.scale(1,.4); ringL(0,0,R*.3,`rgba(255,200,140,${.8*a})`,5); ringL(0,0,R*.3,`rgba(255,255,255,${.9*a})`,1.2); C.restore(); }
+    if(w.const&&wst.const&&wst.const.pts){ const s=wst.const, pts=s.pts, n=s.n, ev=P.evo.const, pul=.75+.25*Math.sin(clock*6);
+      for(let i=0;i<n;i++){ const A=pts[i], B=pts[(i+s.step)%n];
+        seg(A[0],A[1],B[0],B[1],ev?"rgba(255,215,150,.16)":"rgba(140,180,255,.16)",10); seg(A[0],A[1],B[0],B[1],ev?`rgba(255,225,170,${.6*pul})`:`rgba(160,200,255,${.6*pul})`,3); seg(A[0],A[1],B[0],B[1],"rgba(255,255,255,.9)",1.1); }
+      for(const A of pts){ glow(A[0],A[1],26,ev?"rgba(255,215,150,.9)":"rgba(150,190,255,.9)",.8); sparkle(A[0],A[1],11,"#fff",clock*2); } }
+    C.globalCompositeOperation="source-over";
+    for(const g of wells){ const grow=clamp((g.m-g.l)/.35,0,1), fade=clamp(g.l/.3,0,1), R=g.r*grow; // the event horizon itself: true black
+      dot(g.x,g.y,R*.15,"#000"); ringL(g.x,g.y,R*.16,`rgba(255,240,220,${.95*fade})`,1.6); } }
   if(w.flame){ const R=flameR(), n=8+w.flame*2, ev=P.evo.flame, g=C.createRadialGradient(P.x,P.y,R*.3,P.x,P.y,R);
     g.addColorStop(0,"rgba(255,170,70,0)"); g.addColorStop(1,ev?"rgba(255,230,150,.3)":"rgba(255,170,80,.24)");
     C.fillStyle=g; C.beginPath(); C.arc(P.x,P.y,R,0,TAU); C.fill(); ringL(P.x,P.y,R,"rgba(255,210,140,.7)",1.6);
@@ -1714,6 +1790,9 @@ function drawDarkness(sx,sy){
   if(w.petals&&wst.petals){ const s=wst.petals,{n,orbit}=petalCfg(); for(let i=0;i<n;i++){ const a=s.ang+i*TAU/n; hole(P.x+Math.cos(a)*orbit,P.y+Math.sin(a)*orbit,55,.6); } }
   for(const b of bullets) hole(b.x,b.y,70,.8);
   for(const b of bubs) hole(b.x,b.y,b.r*4,.7);
+  for(const b of lances){ const f=b.l/b.m; for(let k=0;k<=b.L;k+=150) hole(b.x+Math.cos(b.a)*k,b.y+Math.sin(b.a)*k,90,f); }
+  for(const g of wells) hole(g.x,g.y,g.r*.7,.5);
+  if(w.const&&wst.const&&wst.const.pts) for(const A of wst.const.pts) hole(A[0],A[1],70,.7);
   for(const c of chaks) hole(c.x,c.y,85,.7);
   for(const m of meteors){ hole(m.x,m.y-m.t*900,110,.8); hole(m.x,m.y,m.r*1.2,.3*(1-m.t/m.m)); }
   for(const n of novas) hole(P.x,P.y,n.r+70,.4*clamp(1-n.r/n.max,0,1));
@@ -1778,6 +1857,7 @@ function render(){
   const v=ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.max(W,H)*.75), lowL=state==="play"&&(LF()<.25||P.camp>0);
   v.addColorStop(0,"rgba(0,0,0,0)"); v.addColorStop(1,P.hurt>0?"rgba(255,30,80,.45)":lowL?`rgba(255,70,30,${.25+.18*Math.sin(clock*8)})`:"rgba(0,0,10,.5)");
   ctx.fillStyle=v; ctx.fillRect(0,0,W,H);
+  if(cineFx) drawCine();
   if(flash>0){ ctx.globalAlpha=flash*.7; ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
   if(state==="play"||state==="levelup"||state==="paused"||state==="over") drawHUD();
   if(state==="play"||state==="paused"){ const pct=Math.round(100*(1-P.dashCd/P.dashMax)); if(pct!==lastDashPct){ lastDashPct=pct; $("dashBtn").style.setProperty("--p",pct); } }
@@ -1926,7 +2006,9 @@ function menuScene(dt){
 let frameMs=0;
 function frame(now){
   const dt=Math.min(.05,(now-last)/1000); last=now; clock+=dt; const t0=performance.now();
-  if(state==="play"){ if(!document.hidden) update(dt); }
+  slowmo+=(1-slowmo)*Math.min(1,dt*1.5); cz+=(1-cz)*Math.min(1,dt*2.2); Z=Zb*cz;
+  if(cineFx){ cineFx.t+=dt; if(cineFx.t>=cineFx.d) cineFx=null; }
+  if(state==="play"){ if(!document.hidden) update(dt*slowmo); }
   else if(state==="menu"||state==="select"||state==="atlas"){ P.weapons=P.weapons||{}; menuScene(dt); }
   else if(state==="over"){ for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.l-=dt;} parts=parts.filter(p=>p.l>0); shake=Math.max(0,shake-dt*30); lightR+=((victory?900:50)-lightR)*Math.min(1,dt*1.5); }
   if(state==="intro") drawIntro(dt); else render();
