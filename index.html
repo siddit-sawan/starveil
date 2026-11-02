@@ -1752,6 +1752,7 @@ function render(){
   if(state!=="over") drawPlayer();
   ctx.restore();
   drawDarkness(sx,sy);
+  if(state==="play"&&P.camp>0) drawVeilClose(sx,sy);
   // glow pass: things that shine through the dark
   ctx.save(); ctx.translate(W/2,H/2); ctx.scale(Z,Z); ctx.translate(-cam.x+sx,-cam.y+sy);
   drawEyes();
@@ -1771,6 +1772,45 @@ function render(){
   if(state==="play"||state==="paused"){ const pct=Math.round(100*(1-P.dashCd/P.dashMax)); if(pct!==lastDashPct){ lastDashPct=pct; $("dashBtn").style.setProperty("--p",pct); } }
 }
 
+
+
+/* ================================================================ the Veil */
+const veilEdge=(y,vx,t)=>vx+38*Math.sin(y*.011+t*1.3)+22*Math.sin(y*.029-t*2.2)+9*Math.sin(y*.07+t*3.1);
+function tendril(pts,w,cols){ // a tapering wisp along a polyline: a violet halo pass, then the dark body
+  ctx.lineCap="round";
+  for(const [k,c] of cols) for(let i=0;i<pts.length-1;i++){ const u=i/(pts.length-1); ctx.strokeStyle=c; ctx.lineWidth=w*k*(1-u*.85);
+    ctx.beginPath(); ctx.moveTo(pts[i][0],pts[i][1]); ctx.lineTo(pts[i+1][0],pts[i+1][1]); ctx.stroke(); }
+}
+function drawIntroVeil(vx,a){
+  if(a<=0) return; const t=clock, H2=H+20, front=()=>{ ctx.beginPath(); for(let y=-10;y<=H2;y+=10) ctx.lineTo(veilEdge(y,vx,t),y); };
+  ctx.save(); ctx.globalAlpha=a;
+  front(); ctx.lineTo(-20,H2); ctx.lineTo(-20,-10); ctx.closePath(); // its body: smoke that thickens toward the advancing edge
+  const g=ctx.createLinearGradient(vx-W*.6,0,vx,0); g.addColorStop(0,"rgba(3,0,8,.35)"); g.addColorStop(.7,"rgba(12,2,26,.62)"); g.addColorStop(1,"rgba(26,5,46,.8)"); ctx.fillStyle=g; ctx.fill();
+  ctx.globalCompositeOperation="lighter";
+  for(let i=0;i<24;i++){ const y=hsh(5,i)*H, x=vx-40-hsh(6,i)*W*.45+Math.sin(t*.7+i)*24, R=60+hsh(7,i)*110; // billows churning inside
+    glow(x,y,R,i%3?"rgba(100,35,170,.5)":"rgba(60,30,150,.5)",(.1+.06*Math.sin(t*1.4+i*2))*a); }
+  ctx.lineJoin="round";
+  for(const [w,c] of[[30,"rgba(140,60,255,.12)"],[10,"rgba(175,95,255,.35)"],[2.2,"rgba(238,215,255,.9)"]]){ front(); ctx.strokeStyle=c; ctx.lineWidth=w; ctx.stroke(); } // the burning rim
+  ctx.globalCompositeOperation="source-over";
+  for(let i=0;i<18;i++){ const y0=(i+.5)*H/18+Math.sin(t+i)*10, x0=veilEdge(y0,vx,t)-6, L=50+80*(.5+.5*Math.sin(t*1.6+i*2.3)), cv=Math.sin(t*1.1+i*1.7)*40, pts=[]; // feelers reaching ahead
+    for(let k=0;k<=10;k++){ const u=k/10; pts.push([x0+L*u,y0+cv*u*u+7*u*Math.sin(u*7+t*3+i)]); }
+    tendril(pts,6.5,[[1.7,"rgba(160,80,255,.16)"],[1,"rgba(9,0,20,.92)"]]); }
+  ctx.restore();
+}
+function drawVeilClose(sx,sy){ // loitering: the Veil creeps in around your light
+  const f=clamp(P.camp/5,0,1), px=(P.x-cam.x+sx)*Z+W/2, py=(P.y-cam.y+sy)*Z+H/2, R0=Math.max(60,lightR*Z*(1.2-.45*f)), t=clock;
+  const edge=a=>R0*(1+.06*Math.sin(a*7+t*2)+.04*Math.sin(a*13-t*3));
+  ctx.save(); ctx.setTransform(DPR,0,0,DPR,0,0);
+  const g=ctx.createRadialGradient(px,py,R0*.92,px,py,R0*1.7); g.addColorStop(0,"rgba(8,0,18,0)"); g.addColorStop(1,`rgba(8,0,18,${.5+.4*f})`); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.globalCompositeOperation="lighter"; ctx.lineJoin="round";
+  for(const [w,c] of[[24,`rgba(140,60,255,${.08+.1*f})`],[8,`rgba(175,95,255,${.2+.25*f})`],[1.8,`rgba(238,215,255,${.45+.45*f})`]]){
+    ctx.beginPath(); for(let i=0;i<=80;i++){ const a=i*TAU/80, r=edge(a); ctx.lineTo(px+Math.cos(a)*r,py+Math.sin(a)*r); } ctx.strokeStyle=c; ctx.lineWidth=w; ctx.stroke(); }
+  ctx.globalCompositeOperation="source-over";
+  for(let i=0;i<20;i++){ const a=i*TAU/20+Math.sin(t*.7+i)*.1, r0=edge(a)+4, L=R0*(.16+.24*f)*(.6+.4*Math.sin(t*2+i*1.9)), cv=Math.sin(t*1.3+i*2.1)*.35, pts=[];
+    for(let k=0;k<=10;k++){ const u=k/10, aa=a+cv*u*u+.05*u*Math.sin(u*7+t*3+i), rr=r0-L*u; pts.push([px+Math.cos(aa)*rr,py+Math.sin(aa)*rr]); }
+    tendril(pts,8,[[1.8,"rgba(160,80,255,.2)"],[1,"rgba(8,0,18,.92)"]]); }
+  ctx.restore();
+}
 
 /* ================================================================ opening cutscene */
 const INTRO=[
@@ -1810,12 +1850,11 @@ function drawIntro(dt){
     const g=ctx.createRadialGradient(x,y,0,x,y,R); g.addColorStop(0,`rgba(${n.c},${a})`); g.addColorStop(1,`rgba(${n.c},0)`); ctx.fillStyle=g; ctx.fillRect(x-R,y-R,R*2,R*2); }
   ctx.globalCompositeOperation="source-over";
   for(const s of I.st){ const x=s.x*W, y=s.y*H; let a=.3+.5*(.5+.5*Math.sin(clock*2.2+s.tw));
+    const dv=(vx-s.out*W*.22)-x; if(veil>0&&veil<1&&dv>0&&dv<60){ ctx.globalAlpha=1; glow(x,y,8+s.r*7,"rgba(190,120,255,.9)",.9*(1-dv/60)); } // swallowed: a last violet flicker
     if(x<vx-s.out*W*.22) a*=.05+.95*sp*clamp(1-Math.hypot(x-cx,y-cy)/(M*(.15+.6*sp)),0,1); // dark, until the spark relights the ones nearby
     ctx.globalAlpha=a; ctx.fillStyle=s.r>1.4?"#ffe9c4":"#dfe8ff"; ctx.beginPath(); ctx.arc(x,y,s.r,0,TAU); ctx.fill(); }
   ctx.globalAlpha=1;
-  if(veil>0&&veil<1){ const g=ctx.createLinearGradient(vx-W*.4,0,vx+30,0); g.addColorStop(0,"rgba(20,0,30,0)"); g.addColorStop(.8,"rgba(80,20,120,.32)"); g.addColorStop(.97,"rgba(190,90,255,.28)"); g.addColorStop(1,"rgba(190,90,255,0)");
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    for(let i=0;i<14;i++){ const y=(i+.5)*H/14, x=vx-10+Math.sin(clock*3+i*1.7)*16; glow(x,y,46,"rgba(170,80,255,.5)",.35); } }
+  if(veil>0) drawIntroVeil(vx,1-sp);
   // the hungry stars close in, then recoil from the spark
   if(T>t2){ const p2=T-t2, fin=clamp(p2/1.2,0,1)*clamp((t4+INTRO[4].d*.55-T)/1,0,1), push=T>t3?(1-Math.pow(1-clamp((T-t3)/1.1,0,1),3)):0;
     const px=P.x, py=P.y;
